@@ -1,0 +1,23 @@
+train_csv: "data/librispeech_synthesized_train.csv"  # Full dataset: 26600 samples (~97h)
+val_csv: "data/librispeech_synthesized_val.csv"      # Full validation: 1585 samples
+batch_size: 16
+num_workers: 8
+max_length: 448
+use_cached: true  # Using disk-based cache (no RAM limit)
+cache_dir: "./work/mmradar_cache"
+
+# Radar spectrogram type (mel recommended)
+use_mel_radar: true       # Use mel spectrogram for radar input (better alignment with Whisper)
+n_mel_radar: 80           # Number of mel bins
+dual_mel_radar: false     # Both models now use mel80
+mel_fmax: 4000            # Max frequency for mel filterbank
+mel_n_fft: 1024           # FFT window size: 1024 (64ms) for better freq resolution on low-SNR radar
+
+# Linear spectrogram fallback (used only if use_mel_radar=false)
+n_freq_bins: null
+lpf_cutoff_hz: 2500
+
+spec_augment: false
+normalize_radar_spec: false
+lowercase_labels: false       # Lowercase text labels at CSV load time (use true for synth/LibriSpeech, false for laser)
+

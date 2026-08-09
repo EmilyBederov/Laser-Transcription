@@ -1,0 +1,13 @@
+defaults:
+  - _self_
+  - model: whisper_small_student
+  - data: default
+  - trainer: decoder_guided_encoder_only
+
+project_name: "ldv-transcription"
+seed: 42
+exp_name: "${model.name}_${now:%Y-%m-%d_%H-%M-%S}"
+
+hydra:
+  run:
+    dir: outputs/${exp_name}

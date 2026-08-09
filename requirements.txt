@@ -1,0 +1,15 @@
+# Core dependencies for training and evaluating the LDV transcription model.
+# Silero VAD is fetched at runtime via torch.hub (no pip package needed).
+torch>=2.0
+torchaudio
+pytorch-lightning
+hydra-core
+omegaconf
+openai-whisper
+peft
+jiwer
+pandas
+numpy
+tqdm
+matplotlib
+wandb

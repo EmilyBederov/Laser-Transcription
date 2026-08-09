@@ -1,0 +1,66 @@
+# Stage 2: joint encoder fine-tune (LLRD) + decoder LoRA (self+cross attention),
+# with a cross-attention KL term that regularizes which encoder positions the
+# decoder attends to. Gradients flow to the LoRA cross-attention parameters.
+
+# Loss weights
+w_feat: 0.0        # No feature distillation — CE + xattn is the signal
+w_kd: 0.0          # Disabled — CE is sufficient (KD causes mode collapse in S2)
+w_task: 1.0        # CE — primary objective
+w_contra: 0.0
+w_ctc: 0.0
+w_xattn: 0.0         # MSE on wv (weak — replaced by xattn_kl)
+w_xattn_kl: 0.1     # KL on softmax(QK^T) maps — forces decoder to attend to same encoder positions
+xattn_kl_blocks: [8, 9, 10, 11]
+
+# Distillation
+distillation_mode: "single"
+cache_distillation_mode: "multi_layer"
+use_attention_transfer: false
+use_layer_norm: false
+
+# Encoder: LLRD by default. Override with freeze_lower_n_blocks=8 for small-dataset laser FT.
+# freeze_lower_n_blocks: 8  ← freeze blocks 0-7, train blocks 8-11 + projection
+freeze_encoder: false
+freeze_lower_n_blocks: 0
+use_llrd: true
+llrd_decay: 0.85
+lr: 1e-5           # Encoder LR (upper layers get full 1e-5; stem gets 1e-5 * 0.85^12)
+decoder_lr: 5e-5   # Decoder LoRA LR
+
+# Training settings
+max_epochs: 50
+accumulate_grad_batches: 4
+gradient_clip_val: 1.0
+weight_decay: 0.01
+warmup_steps: 500
+precision: "bf16-mixed"
+
+# Multi-GPU
+devices: 3
+strategy: "ddp"
+
+# EMA
+use_ema: true
+ema_decay: 0.999
+
+# Checkpointing — monitor WER
+save_top_k: 3
+monitor: "val/wer"
+mode: "min"
+ckpt_path: null
+encoder_ckpt_path: null
+
+# KD Warmup (unused)
+kd_warmup_steps: 0
+kd_warmup_start: 0.0
+ctc_warmup_steps: 0
+ctc_warmup_start: 0.0
+
+# LoRA: self + cross attention
+lora_rank: 32
+use_dora: false
+lora_target_self_attn: true
+lora_target_ffn: false
+
+# Pretrain mode
+pretrain_mode: null
