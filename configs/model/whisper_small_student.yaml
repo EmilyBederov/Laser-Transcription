@@ -1,22 +1,18 @@
 name: "whisper_small_student"
 student_type: "whisper"
 whisper_student_model: "small.en"   # Load pretrained Whisper small.en encoder
-attention_type: "regular"           # Unused, kept for compatibility
 student_dim: 768                    # Whisper small: 768d
 teacher_dim: 768                    # Whisper small teacher: 768d (no projection needed)
 input_freq: 80                      # Whisper small conv1 expects 80 mel bins
 num_layers: 12                      # Whisper small: 12 encoder layers
 num_heads: 12                       # Whisper small: 12 heads
-kernel_size: 31                     # Unused
-dropout: 0.1                        # Unused
 teacher_model: "small.en"
 use_gradient_checkpointing: true
 
 # Multi-layer distillation: last 6 of 12 student layers (most semantic)
 use_multilayer_distill: true
-use_per_block_projections: false  # student_dim == teacher_dim (both 768), no projection needed
 
-# Same-index distillation: student & teacher are both small.en (12L), so layer i → layer i
+# Same-index distillation: student & teacher are both small.en (12L), so layer i -> layer i
 student_distill_layer_indices: [2, 6, 8, 9, 10, 11]  # 2=early, 6=middle, 8-11=last 4 semantic
 teacher_layer_indices: [2, 6, 8, 9, 10, 11]           # Matches student exactly
 source_teacher_layer_indices: [2, 6, 8, 9, 10, 11]    # Cache these 6 layers from small.en

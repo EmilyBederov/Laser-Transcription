@@ -223,7 +223,7 @@ class RadarLightningModule(pl.LightningModule):
             w_feat=cfg.trainer.w_feat,
             w_kd=cfg.trainer.w_kd,
             w_task=cfg.trainer.w_task,
-            w_contra=cfg.trainer.w_contra,
+            w_contra=cfg.trainer.get('w_contra', 0.0),
             w_ctc=cfg.trainer.get('w_ctc', 0.0),  # CTC weight for alignment learning
             kd_warmup_start=cfg.trainer.get('kd_warmup_start', cfg.trainer.w_kd),
             kd_warmup_steps=cfg.trainer.get('kd_warmup_steps', 0),

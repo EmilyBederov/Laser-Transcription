@@ -8,8 +8,6 @@
 w_task: 1.0        # cross-entropy through the frozen decoder (the decoder-guidance term)
 w_feat: 0.5        # final-layer MSE + cosine anchor
 w_kd: 0.0          # no logit distillation
-w_contra: 0.0
-w_ctc: 0.0
 
 decoder_guided_s1: true   # run the frozen decoder for CE; skip LoRA/DoRA injection
 
@@ -18,13 +16,16 @@ distillation_mode: "multi_layer"
 use_layer_norm: true
 mse_weight: 0.5
 cosine_weight: 0.3
-use_attention_transfer: false
 use_rkd: true              # relational KD on the deep blocks
 rkd_weight: 0.05
 rkd_from_block: 3          # block indices are 0-based (Whisper internal)
 rkd_to_block: 5            # exclusive
 rkd_n_samples: 64
 cache_distillation_mode: "multi_layer"
+
+# Encoder self-attention map distillation (0.0 = off; 0.1 for laser Stage 1)
+w_enc_attn: 0.0
+enc_attn_blocks: [8, 9, 10, 11]
 
 # Training
 max_epochs: 50
@@ -40,9 +41,10 @@ use_ema: true
 ema_decay: 0.999
 use_llrd: false
 llrd_decay: 0.85
-freeze_lower_n_blocks: 0
-freeze_encoder: false
-freeze_encoder_except_ln: false
+
+# Task-CE warmup: let the feature anchor settle before ramping in the decoder-guidance term
+task_warmup_start: 0.05
+task_warmup_steps: 1500
 
 # Checkpointing
 save_top_k: 3
@@ -50,18 +52,3 @@ monitor: "val/loss"
 mode: "min"
 ckpt_path: null
 encoder_ckpt_path: null
-
-# Task-CE warmup: let the feature anchor settle before ramping in the decoder-guidance term
-task_warmup_start: 0.05
-task_warmup_steps: 1500
-kd_warmup_steps: 0
-kd_warmup_start: 0.0
-ctc_warmup_steps: 0
-ctc_warmup_start: 0.0
-
-# Encoder self-attention map distillation (0.0 = off; 0.1 for laser Stage 1)
-w_enc_attn: 0.0
-enc_attn_blocks: [8, 9, 10, 11]
-w_xattn_kl: 0.0
-xattn_kl_blocks: [8, 9, 10, 11]
-pretrain_mode: null
