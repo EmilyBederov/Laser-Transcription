@@ -1,10 +1,10 @@
-train_csv: "data/librispeech_synthesized_train.csv"  # Full dataset: 26600 samples (~97h)
-val_csv: "data/librispeech_synthesized_val.csv"      # Full validation: 1585 samples
+train_csv: "path/to/your/train.csv"  # your training manifest (radar_path,audio_path,text)
+val_csv: "path/to/your/val.csv"      # your validation manifest
 batch_size: 16
 num_workers: 8
 max_length: 448
 use_cached: true  # Using disk-based cache (no RAM limit)
-cache_dir: "./work/mmradar_cache"
+cache_dir: "path/to/your/cache"  # teacher-feature cache is written here
 
 # Radar spectrogram type (mel recommended)
 use_mel_radar: true       # Use mel spectrogram for radar input (better alignment with Whisper)

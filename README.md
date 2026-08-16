@@ -103,9 +103,9 @@ Point the configs at your CSVs (edit `configs/data/default.yaml` or override on
 the command line):
 
 ```yaml
-train_csv: "data/train.csv"
-val_csv:   "data/val.csv"
-cache_dir: "./work/mmradar_cache"   # teacher-feature cache is written here
+train_csv: "path/to/your/train.csv"
+val_csv:   "path/to/your/val.csv"
+cache_dir: "path/to/your/cache"   # teacher-feature cache is written here
 lowercase_labels: false             # true for synthetic/LibriSpeech, false for laser
 ```
 
@@ -128,8 +128,8 @@ GPU, add `trainer.devices=1 trainer.strategy=auto` to every command.
 python -m src.train \
     model=whisper_small_student \
     trainer=decoder_guided_encoder_only \
-    data.train_csv=data/train.csv \
-    data.val_csv=data/val.csv \
+    data.train_csv=path/to/your/train.csv \
+    data.val_csv=path/to/your/val.csv \
     data.use_cached=true
 ```
 
@@ -147,8 +147,8 @@ Feed Stage 2 the encoder from your best Stage-1 checkpoint via
 python -m src.train \
     model=whisper_small_student \
     trainer=stage2_xattn \
-    data.train_csv=data/train.csv \
-    data.val_csv=data/val.csv \
+    data.train_csv=path/to/your/train.csv \
+    data.val_csv=path/to/your/val.csv \
     trainer.encoder_ckpt_path=outputs/<stage1-run>/checkpoints/last.ckpt
 ```
 
@@ -164,7 +164,7 @@ never on a clean reference.
 ```bash
 python scripts/eval.py \
     --checkpoint outputs/<stage2-run>/checkpoints/best.ckpt \
-    --test_csv data/test.csv \
+    --test_csv path/to/your/test.csv \
     --beam_size 5 --no_repeat_ngram_size 3 --vad \
     --output results/eval.csv
 ```

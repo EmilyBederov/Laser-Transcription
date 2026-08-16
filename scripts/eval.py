@@ -4,7 +4,7 @@ Full evaluation script: WER + CER on a test CSV.
 Usage:
     python scripts/eval.py \
         --checkpoint /path/to/checkpoint.ckpt \
-        --test_csv data/laser_b12b13b14_xy_val.csv \
+        --test_csv path/to/your/test.csv \
         --output results/eval.csv \
         --beam_size 5
 
