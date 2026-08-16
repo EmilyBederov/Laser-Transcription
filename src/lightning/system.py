@@ -827,20 +827,6 @@ class RadarLightningModule(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         return self.validation_step(batch, batch_idx)
 
-    def on_before_optimizer_step(self, optimizer):
-        """Log gradient norms before optimizer step"""
-        # DISABLED FOR DEBUGGING
-        pass
-        # # Compute gradient norm
-        # grad_norm = 0.0
-        # for p in self.system.student.parameters():
-        #     if p.grad is not None:
-        #         param_norm = p.grad.data.norm(2)
-        #         grad_norm += param_norm.item() ** 2
-        # grad_norm = grad_norm ** 0.5
-
-        # self.log("train/grad_norm", grad_norm, on_step=True, on_epoch=False, prog_bar=False)
-
     @staticmethod
     def _get_decoder_blocks(decoder):
         """Return decoder transformer blocks regardless of PEFT wrapping."""
