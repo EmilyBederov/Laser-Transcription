@@ -54,33 +54,6 @@ Silero VAD and the Whisper weights are downloaded automatically at first use
 (via `torch.hub` / the `openai-whisper` package). A CUDA GPU is required for
 training; evaluation runs on a single GPU.
 
-## Hardware and environment
-
-The models were developed and trained on a SLURM cluster. What we used, and what
-you need to reproduce it:
-
-- **GPUs.** Headline runs used **2x NVIDIA L40S (48 GB)** per job; also validated
-  on **A100 (40/80 GB)** and **H200 (141 GB)**. Any Ampere-or-newer data-center
-  GPU works.
-- **Mixed precision.** Training runs in `bf16-mixed`, which **requires an
-  Ampere-or-newer GPU** (A100 / L40S / H200 / RTX 30-series or later). Pre-Ampere
-  cards cannot run the bf16 kernels.
-- **Multi-GPU.** PyTorch Lightning **DDP**. The trainer configs default to
-  `devices: 3`; set `trainer.devices=N` to match your node, or
-  `trainer.devices=1 trainer.strategy=auto` for a single GPU.
-- **CPU / RAM.** About **12 CPU cores per GPU** and **48-64 GB system RAM** per
-  job (allow more during the first cache-building pass).
-- **Software.** Python 3.10, PyTorch >= 2.0 with CUDA, plus the packages in
-  `requirements.txt`.
-- **Wall time.** Roughly **one day per stage, per track** on 2x L40S.
-
-**Disk for the cache.** The first run precomputes Whisper teacher features to
-`cache_dir` (see "The teacher-feature cache" below). This is large and scales
-with corpus size -- budget **hundreds of GB** for the synthetic corpus. Point
-`cache_dir` at a fast filesystem with room to spare.
-
-## What you need to provide
-
 ### 1. Data and CSV manifests
 
 The corpora are released separately as **LaserSpeech** (synthesis pipeline,
