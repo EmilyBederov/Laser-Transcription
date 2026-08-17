@@ -7,7 +7,7 @@ defining the speech-only regions of the audio, AFTER:
   2. Expand each segment by ±expand_ms
   3. Merge segments whose gap < merge_gap_ms
 
-At re-cache / training time, both teacher (audio) and student (radar/laser)
+At re-cache / training time, both teacher (audio) and student (laser/laser)
 crop their waveforms identically using these segments before computing mel.
 
 Idempotent — already-existing sidecar files are skipped.

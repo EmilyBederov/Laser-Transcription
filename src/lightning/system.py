@@ -7,7 +7,7 @@ import whisper
 import jiwer
 from whisper.normalizers import EnglishTextNormalizer
 _WHISPER_NORMALIZER = EnglishTextNormalizer()
-from src.models import RadarWhisperStudent, RadarKDSystem
+from src.models import LaserWhisperStudent, LaserKDSystem
 from src.loss import CompositeLoss
 from src.utils.ema import ModelEMA
 from peft import LoraConfig, get_peft_model
@@ -25,7 +25,7 @@ def move_to_device(obj, device):
         return obj
 
 
-class RadarLightningModule(pl.LightningModule):
+class LaserLightningModule(pl.LightningModule):
     def __init__(self, cfg):
         super().__init__()
         self.save_hyperparameters()
@@ -65,7 +65,7 @@ class RadarLightningModule(pl.LightningModule):
             print("SKIPPING teacher model (ctc_only mode)")
 
         # 2. Initialize Student
-        student = RadarWhisperStudent(
+        student = LaserWhisperStudent(
             input_freq=cfg.model.input_freq,
             student_dim=cfg.model.student_dim,
             teacher_dim=cfg.model.teacher_dim,
@@ -94,7 +94,7 @@ class RadarLightningModule(pl.LightningModule):
         self.decoder_guided_s1 = cfg.trainer.get('decoder_guided_s1', False)
         if self.decoder_guided_s1:
             print("\n>>> DECODER-GUIDED S1 MODE: Frozen decoder used for CE signal (no LoRA)")
-        self.system = RadarKDSystem(
+        self.system = LaserKDSystem(
             student_model=student,
             teacher_model=teacher,
             teacher_type=self.teacher_type if self.teacher_type is not None else "whisper",
@@ -184,7 +184,7 @@ class RadarLightningModule(pl.LightningModule):
         # and full encoder FT (drifts away from the S1-aligned representation → WER rises).
         # Freezes the encoder base weights and learns only low-rank attention deltas, so the
         # encoder refines without leaving the Stage-1 manifold. In-place injection is required
-        # because RadarWhisperStudent.forward accesses encoder fields directly (self.encoder.conv1,
+        # because LaserWhisperStudent.forward accesses encoder fields directly (self.encoder.conv1,
         # .blocks, ...) — wrapping in a PeftModel would break that access.
         # NOTE: pair with freeze_encoder=false (so the LoRA params stay trainable) and
         # use_llrd=false (LLRD param-grouping does not enumerate injected LoRA params).
@@ -322,10 +322,10 @@ class RadarLightningModule(pl.LightningModule):
         self.w_enc_attn = cfg.trainer.get('w_enc_attn', 0.0)
         self.enc_attn_blocks = cfg.trainer.get('enc_attn_blocks', [8, 9, 10, 11])
         if self.w_enc_attn > 0:
-            RadarWhisperStudent.patch_attn_map_capture(
+            LaserWhisperStudent.patch_attn_map_capture(
                 self.system.student.encoder, self.enc_attn_blocks
             )
-            RadarWhisperStudent.patch_attn_map_capture(
+            LaserWhisperStudent.patch_attn_map_capture(
                 self.system.teacher.encoder, self.enc_attn_blocks
             )
             print(f"Encoder attention distillation: w_enc_attn={self.w_enc_attn}, blocks={self.enc_attn_blocks}")
@@ -381,14 +381,14 @@ class RadarLightningModule(pl.LightningModule):
                     cos_b = cos_b.mean()
                 self.log(f"{prefix}/cosine_sim_block{i}", cos_b, on_step=False, on_epoch=True, sync_dist=True)
 
-    def forward(self, radar, teacher_feats, dec_in, mask, return_ctc=False):
+    def forward(self, laser, teacher_feats, dec_in, mask, return_ctc=False):
         # In pretrain modes, bypass the full system and just use student encoder
         if self.pretrain_mode is not None:
             # Only use student encoder (+ optional teacher features for pretraining)
             if return_ctc:
-                student_feats, ctc_logits = self.system.student(radar, mask, return_ctc=True)
+                student_feats, ctc_logits = self.system.student(laser, mask, return_ctc=True)
             else:
-                student_feats = self.system.student(radar, mask, return_ctc=False)
+                student_feats = self.system.student(laser, mask, return_ctc=False)
                 ctc_logits = None
 
             # Handle different pretrain modes
@@ -409,7 +409,7 @@ class RadarLightningModule(pl.LightningModule):
             }
         else:
             # End-to-end mode: use full system
-            return self.system(radar, teacher_feats, dec_in, mask, return_ctc=return_ctc)
+            return self.system(laser, teacher_feats, dec_in, mask, return_ctc=return_ctc)
 
     def setup(self, stage: str) -> None:
         # DDP cannot broadcast sparse tensors (Whisper registers `alignment_heads` as sparse).
@@ -458,7 +458,7 @@ class RadarLightningModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         # Unpack batch
-        radar = batch['radar_spec']
+        laser = batch['laser_spec']
         teacher_feats = batch['teacher_feats']  # Precomputed embeddings!
         dec_in = batch['decoder_input']
         labels = batch['labels']
@@ -495,7 +495,7 @@ class RadarLightningModule(pl.LightningModule):
                     block = blocks[i]
                     if hasattr(block, 'cross_attn') and hasattr(block.cross_attn, '_xattn_map_history'):
                         block.cross_attn._xattn_map_history = []
-        outputs = self(radar, teacher_feats, dec_in, mask, return_ctc=use_ctc)
+        outputs = self(laser, teacher_feats, dec_in, mask, return_ctc=use_ctc)
         if use_xattn:
             for h in xattn_hooks:
                 h.remove()
@@ -661,7 +661,7 @@ class RadarLightningModule(pl.LightningModule):
                     print(f"[NaN DIAG] student_logits: nan={torch.isnan(sl).any().item()} inf={torch.isinf(sl).any().item()}")
                 if tl is not None:
                     print(f"[NaN DIAG] teacher_logits: nan={torch.isnan(tl).any().item()} inf={torch.isinf(tl).any().item()}")
-                print(f"[NaN DIAG] radar: nan={torch.isnan(radar).any().item()} min={radar.float().min().item():.3f} max={radar.float().max().item():.3f}")
+                print(f"[NaN DIAG] laser: nan={torch.isnan(laser).any().item()} min={laser.float().min().item():.3f} max={laser.float().max().item():.3f}")
             print(f"[Step {self.training_steps}] Non-finite loss ({loss.item():.4f}), breakdown: "
                   f"feat={breakdown['loss_feat']:.4f} kd={breakdown['loss_kd']:.4f} "
                   f"task={breakdown['loss_task']:.4f} contra={breakdown['loss_contra']:.4f}")
@@ -707,7 +707,7 @@ class RadarLightningModule(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        radar = batch['radar_spec']
+        laser = batch['laser_spec']
         teacher_feats = batch['teacher_feats']  # Precomputed embeddings!
         dec_in = batch['decoder_input']
         labels = batch['labels']
@@ -722,10 +722,10 @@ class RadarLightningModule(pl.LightningModule):
         if self.use_ema:
             original_student = self.system.student
             self.system.student = self.ema.ema_model
-            outputs = self(radar, teacher_feats, dec_in, mask)
+            outputs = self(laser, teacher_feats, dec_in, mask)
             self.system.student = original_student
         else:
-            outputs = self(radar, teacher_feats, dec_in, mask)
+            outputs = self(laser, teacher_feats, dec_in, mask)
 
         # Move mask to same device as student features
         if mask is not None:
@@ -1083,7 +1083,7 @@ class RadarLightningModule(pl.LightningModule):
                     param.requires_grad = True
             # Unfreeze LayerNorms in transformer blocks — cheap (2*768 params each) but
             # critical for domain adaptation: LNs recalibrate activation statistics when
-            # input distribution shifts (synthesized radar -> real laser).
+            # input distribution shifts (synthesized laser -> real laser).
             for block in student.encoder.blocks:
                 for ln in [block.attn_ln, block.mlp_ln]:
                     for param in ln.parameters():

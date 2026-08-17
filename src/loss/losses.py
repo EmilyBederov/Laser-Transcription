@@ -114,7 +114,7 @@ class FeatureLoss(nn.Module):
 class ContrastiveLoss(nn.Module):
     """
     InfoNCE Loss.
-    Maximizes cosine similarity between correct radar-audio pairs.
+    Maximizes cosine similarity between correct laser-audio pairs.
     """
     def __init__(self, temperature=0.07):
         super().__init__()

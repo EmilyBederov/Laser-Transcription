@@ -1,7 +1,7 @@
-from .whisper_student import RadarWhisperStudent
-from .kd_system import RadarKDSystem
+from .whisper_student import LaserWhisperStudent
+from .kd_system import LaserKDSystem
 
 __all__ = [
-    "RadarWhisperStudent",
-    "RadarKDSystem",
+    "LaserWhisperStudent",
+    "LaserKDSystem",
 ]

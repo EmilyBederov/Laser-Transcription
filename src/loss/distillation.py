@@ -281,7 +281,7 @@ class MultiLayerDistillation(DistillationStrategy):
 
         Instead of forcing exact attention map alignment (AT), RKD matches the
         geometric relationships between frames: pairwise distances and angles.
-        This allows the student to develop its own radar-adapted attention patterns
+        This allows the student to develop its own laser-adapted attention patterns
         while preserving the relational structure of speech representations.
 
         Distance-wise: normalize pairwise L2 distances, match with Huber loss.

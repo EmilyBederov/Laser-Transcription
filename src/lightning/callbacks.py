@@ -112,18 +112,18 @@ class LogPredictionsCallback(pl.Callback):
                                 batch_idx, dataloader_idx=0):
         do_save = (trainer.current_epoch % self.save_every_n_epochs == 0)
 
-        n_disp = sum(b['radar'].shape[0] for b in self._display_batches)
-        n_save = sum(b['radar'].shape[0] for b in self._save_batches)
+        n_disp = sum(b['laser'].shape[0] for b in self._display_batches)
+        n_save = sum(b['laser'].shape[0] for b in self._save_batches)
 
         def _slice(batch, k):
             return {
-                'radar':  batch['radar_spec'][:k].cpu(),
+                'laser':  batch['laser_spec'][:k].cpu(),
                 'labels': batch['labels'][:k].cpu(),
                 'mask':   batch['padding_mask'][:k].cpu()
                           if batch.get('padding_mask') is not None else None,
             }
 
-        bs = batch['radar_spec'].shape[0]
+        bs = batch['laser_spec'].shape[0]
 
         if n_disp < self.num_display:
             k = min(self.num_display - n_disp, bs)
@@ -135,19 +135,19 @@ class LogPredictionsCallback(pl.Callback):
 
     # ------------------------------------------------------------------
     def _decode_batches(self, pl_module, batches):
-        """Returns (gts, preds, radar_tensor). Real autoregressive inference."""
-        all_gts, all_preds, all_radar = [], [], []
+        """Returns (gts, preds, laser_tensor). Real autoregressive inference."""
+        all_gts, all_preds, all_laser = [], [], []
         student = pl_module.ema.ema_model if pl_module.use_ema else pl_module.system.student
         student = student.to(pl_module.device)
         decoder = pl_module.system.teacher.decoder.to(pl_module.device)
 
         with torch.no_grad():
             for b in batches:
-                radar  = b['radar'].to(pl_module.device)
+                laser  = b['laser'].to(pl_module.device)
                 labels = b['labels'].to(pl_module.device)
                 mask   = b['mask'].to(pl_module.device) if b['mask'] is not None else None
 
-                feats = student(radar, padding_mask=mask)
+                feats = student(laser, padding_mask=mask)
                 if isinstance(feats, tuple):
                     feats = feats[0]
 
@@ -167,9 +167,9 @@ class LogPredictionsCallback(pl.Callback):
                     gt = strip_special_tokens(self.tokenizer.decode(valid.cpu().tolist()))
                     all_gts.append(gt)
                 all_preds.extend(preds)
-                all_radar.append(radar.cpu())
+                all_laser.append(laser.cpu())
 
-        return all_gts, all_preds, torch.cat(all_radar, dim=0)
+        return all_gts, all_preds, torch.cat(all_laser, dim=0)
 
     # ------------------------------------------------------------------
     def on_validation_epoch_end(self, trainer, pl_module):
@@ -182,7 +182,7 @@ class LogPredictionsCallback(pl.Callback):
             do_save = (epoch % self.save_every_n_epochs == 0)
 
             # ── 1. Decode 8 samples → val/wer + WandB table (every epoch) ──
-            gts, preds, radar_all = self._decode_batches(pl_module, self._display_batches)
+            gts, preds, laser_all = self._decode_batches(pl_module, self._display_batches)
 
             norm_gts   = [_WHISPER_NORMALIZER(g) for g in gts]
             norm_preds = [_WHISPER_NORMALIZER(p) for p in preds]
@@ -204,13 +204,13 @@ class LogPredictionsCallback(pl.Callback):
                   f"{', excl ' + str(n_excluded) + ' hallucinations' if n_excluded else ''}"
                   f") = {wer_display:.4f}")
 
-            columns = ["Radar (Mel)", "Ground Truth", "Prediction", "WER"]
+            columns = ["Laser (Mel)", "Ground Truth", "Prediction", "WER"]
             rows = []
             for i in range(len(preds)):
                 fig, ax = plt.subplots(figsize=(10, 4))
-                ax.imshow(radar_all[i].cpu().numpy().squeeze(),
+                ax.imshow(laser_all[i].cpu().numpy().squeeze(),
                           aspect='auto', origin='lower', cmap='viridis')
-                ax.set_title("Radar Mel Spec")
+                ax.set_title("Laser Mel Spec")
                 ax.set_xlabel("Time")
                 plt.tight_layout()
                 img = wandb.Image(fig)
@@ -296,7 +296,7 @@ class LogAttnMapsCallback(pl.Callback):
         if batch_idx == 0 and self._batch is None:
             n = self.num_samples
             self._batch = {
-                'radar_spec':   batch['radar_spec'][:n].cpu(),
+                'laser_spec':   batch['laser_spec'][:n].cpu(),
                 'padding_mask': batch['padding_mask'][:n].cpu()
                                 if batch.get('padding_mask') is not None else None,
                 'audio_path':   batch['audio_path'][:n]
@@ -319,7 +319,7 @@ class LogAttnMapsCallback(pl.Callback):
         teacher_encoder = pl_module.system.teacher.encoder
         blocks = pl_module.enc_attn_blocks
 
-        radar = self._batch['radar_spec'].to(device)
+        laser = self._batch['laser_spec'].to(device)
         mask  = self._batch['padding_mask'].to(device) \
                 if self._batch['padding_mask'] is not None else None
         audio_paths = self._batch['audio_path']
@@ -328,7 +328,7 @@ class LogAttnMapsCallback(pl.Callback):
             pl_module.eval()
             with torch.no_grad():
                 # Student forward → populates _last_attn_weights on student encoder blocks
-                student(radar, padding_mask=mask)
+                student(laser, padding_mask=mask)
 
                 # Teacher forward on audio → populates _last_attn_weights on teacher encoder
                 teacher_maps = {}

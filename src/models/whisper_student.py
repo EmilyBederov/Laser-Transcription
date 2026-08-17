@@ -21,10 +21,10 @@ class ResidualAdapter(nn.Module):
         return x + self.fc2(F.gelu(self.fc1(self.norm(x))))
 
 
-class RadarWhisperStudent(nn.Module):
+class LaserWhisperStudent(nn.Module):
     """
     Student encoder using the published Whisper tiny architecture.
-    Only the first Conv1d is replaced to accept radar frequency bins instead of mel bins.
+    Only the first Conv1d is replaced to accept laser frequency bins instead of mel bins.
     Everything else (transformer blocks, positional encoding, layer norm) is exactly as published.
     """
 
@@ -225,7 +225,7 @@ class RadarWhisperStudent(nn.Module):
     def forward(self, x, padding_mask=None, return_ctc=False, return_intermediate=False):
         """
         Args:
-            x: Input radar spectrogram [B, 1, F, T] where F=freq bins, T=3000
+            x: Input laser spectrogram [B, 1, F, T] where F=freq bins, T=3000
             padding_mask: [B, T]
             return_ctc: If True, also return CTC logits
             return_intermediate: If True, return intermediate block outputs

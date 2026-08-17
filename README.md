@@ -2,7 +2,7 @@
 
 Code for transcribing speech directly from laser Doppler vibrometry (LDV)
 measurements, without an intermediate reconstructed waveform. A student encoder
-reads the radar/LDV signal and emits representations that a frozen pretrained
+reads the laser/LDV signal and emits representations that a frozen pretrained
 Whisper decoder can transcribe.
 
 ## How it works
@@ -90,11 +90,11 @@ synthetic corpus, and real LDV recordings):
 Prepare a CSV manifest for each split with three columns:
 
 ```csv
-radar_path,audio_path,text
+laser_path,audio_path,text
 /data/ldv/utt001.wav,/data/clean/utt001.wav,"the quick brown fox"
 ```
 
-- `radar_path` — the LDV / radar recording (student input).
+- `laser_path` — the LDV / laser recording (student input).
 - `audio_path` — the aligned clean-speech reference (used only to compute the
   teacher features that supervise Stage 1; not needed at inference).
 - `text` — the ground-truth transcript.

@@ -67,9 +67,9 @@ def load_and_pad_audio(file_path):
         print(f"Error loading {file_path}: {e}")
         return torch.zeros(1, N_SAMPLES), 0
 
-def get_radar_linear_spectrogram(waveform, lpf_cutoff_hz=None, n_freq_bins=None, normalize=False):
+def get_laser_linear_spectrogram(waveform, lpf_cutoff_hz=None, n_freq_bins=None, normalize=False):
     """
-    Calculates Linear STFT for the Student (Radar).
+    Calculates Linear STFT for the Student (Laser).
 
     Args:
         waveform: Input waveform
@@ -120,10 +120,10 @@ def get_radar_linear_spectrogram(waveform, lpf_cutoff_hz=None, n_freq_bins=None,
     return log_spec
 
 
-def get_radar_mel_spectrogram(waveform, n_mels=80, fmax=2500, n_fft=1024, normalize=False):
+def get_laser_mel_spectrogram(waveform, n_mels=80, fmax=2500, n_fft=1024, normalize=False):
     """
-    Mel spectrogram for radar input. Uses larger n_fft than Whisper default (400)
-    for better frequency resolution on low-SNR radar signals. hop_length stays
+    Mel spectrogram for laser input. Uses larger n_fft than Whisper default (400)
+    for better frequency resolution on low-SNR laser signals. hop_length stays
     at 160 to keep 3000 frames → 1500 after Whisper conv downsampling.
 
     Args:
@@ -197,19 +197,19 @@ def tokenize_ground_truth(text, tokenizer):
 
 # --- Main Dataset Class ---
 
-class RADARdataset(Dataset):
-    def __init__(self, radar_paths, teacher_feat_paths, texts, device="cpu", train=False,
+class LASERdataset(Dataset):
+    def __init__(self, laser_paths, teacher_feat_paths, texts, device="cpu", train=False,
                  lpf_cutoff_hz=None, n_freq_bins=None, use_spec_augment=True, normalize_radar_spec=False):
         """
         Args:
-            radar_paths: List of file paths for radar wavs
+            laser_paths: List of file paths for laser wavs
             teacher_feat_paths: List of paths to .pt files (Pre-computed Teacher Features)
             texts: List of ground truth strings
             lpf_cutoff_hz: Low-pass filter cutoff in Hz (alternative to n_freq_bins)
             n_freq_bins: Direct number of frequency bins (overrides lpf_cutoff_hz if set)
             normalize_radar_spec: Whether to apply per-sample normalization (zero mean, unit variance)
         """
-        self.radar_paths = radar_paths
+        self.laser_paths = laser_paths
         self.teacher_feat_paths = teacher_feat_paths
         self.texts = texts
         self.device = device
@@ -231,15 +231,15 @@ class RADARdataset(Dataset):
             self.spec_augment = None
 
     def __len__(self):
-        return len(self.radar_paths)
+        return len(self.laser_paths)
 
     def __getitem__(self, idx):
-        # 1. Load Radar (On the fly)
-        radar_wav, r_len = load_and_pad_audio(self.radar_paths[idx])
+        # 1. Load Laser (On the fly)
+        laser_wav, r_len = load_and_pad_audio(self.laser_paths[idx])
         
-        # 2. Compute Radar Spectrogram
-        radar_spec = get_radar_linear_spectrogram(
-            radar_wav,
+        # 2. Compute Laser Spectrogram
+        laser_spec = get_laser_linear_spectrogram(
+            laser_wav,
             lpf_cutoff_hz=self.lpf_cutoff_hz,
             n_freq_bins=self.n_freq_bins,
             normalize=self.normalize_radar_spec
@@ -247,7 +247,7 @@ class RADARdataset(Dataset):
         
         # 3. Load PRE-COMPUTED Teacher Features
         # CHANGED: We load the .pt file directly. 
-        # The .pt file is a dict: {'radar_spec': ..., 'teacher_feats': ..., 'padding_mask': ...}
+        # The .pt file is a dict: {'laser_spec': ..., 'teacher_feats': ..., 'padding_mask': ...}
         # or a direct tensor from older caching code
         cached_data = torch.load(self.teacher_feat_paths[idx], map_location='cpu')
         
@@ -257,9 +257,9 @@ class RADARdataset(Dataset):
         else:
             teacher_feats = cached_data
 
-        # 4. Apply Augmentation (Radar Only)
+        # 4. Apply Augmentation (Laser Only)
         if self.spec_augment is not None:
-            radar_spec = self.spec_augment(radar_spec)
+            laser_spec = self.spec_augment(laser_spec)
 
         # 5. Tokenize Text
         dec_input_ids, label_ids = tokenize_ground_truth(self.texts[idx], self.tokenizer)
@@ -270,29 +270,29 @@ class RADARdataset(Dataset):
         padding_mask[:valid_frames] = 1.0
         
         return {
-            "radar_spec": radar_spec.to(self.device),       
+            "laser_spec": laser_spec.to(self.device),       
             "teacher_feats": teacher_feats.to(self.device), 
             "decoder_input": torch.tensor(dec_input_ids, dtype=torch.long).to(self.device), 
             "labels": torch.tensor(label_ids, dtype=torch.long).to(self.device),            
             "padding_mask": padding_mask.to(self.device)    
         }
 
-class RadarDataModule(pl.LightningDataModule):
-    def __init__(self, train_radar_paths, train_feat_paths, train_texts, 
-                 val_radar_paths, val_feat_paths, val_texts, 
+class LaserDataModule(pl.LightningDataModule):
+    def __init__(self, train_laser_paths, train_feat_paths, train_texts, 
+                 val_laser_paths, val_feat_paths, val_texts, 
                  batch_size=8, num_workers=4, **kwargs):
         super().__init__()
         # Expects feature paths now, not audio paths
-        self.train_data = (train_radar_paths, train_feat_paths, train_texts)
-        self.val_data = (val_radar_paths, val_feat_paths, val_texts)
+        self.train_data = (train_laser_paths, train_feat_paths, train_texts)
+        self.val_data = (val_laser_paths, val_feat_paths, val_texts)
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.kwargs = kwargs
 
     def setup(self, stage=None):
         if stage == 'fit' or stage is None:
-            self.train_dataset = RADARdataset(*self.train_data, train=True, **self.kwargs)
-            self.val_dataset = RADARdataset(*self.val_data, train=False, **self.kwargs)
+            self.train_dataset = LASERdataset(*self.train_data, train=True, **self.kwargs)
+            self.val_dataset = LASERdataset(*self.val_data, train=False, **self.kwargs)
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.batch_size,

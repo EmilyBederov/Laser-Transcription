@@ -15,12 +15,12 @@ from pathlib import Path
 from src.lightning.datamodule import (
     SAMPLE_RATE, CHUNK_LENGTH, N_SAMPLES, MAX_TEXT_LEN,
     N_FFT, HOP_LENGTH, WIN_LENGTH,
-    load_and_pad_audio, get_radar_linear_spectrogram, get_radar_mel_spectrogram,
+    load_and_pad_audio, get_laser_linear_spectrogram, get_laser_mel_spectrogram,
     tokenize_ground_truth
 )
 
 
-class RADARdatasetCached(Dataset):
+class LASERdatasetCached(Dataset):
     """
     Disk-based caching: Precomputes teacher embeddings and saves each sample as a separate file.
 
@@ -43,8 +43,8 @@ class RADARdatasetCached(Dataset):
         - component_wise: Stem + attention + blocks + final (~400GB for large-v3)
     """
 
-    def __init__(self, radar_paths, audio_paths, texts, tokenizer, device="cpu", train=False, cache_dir=None, n_mels=128, lpf_cutoff_hz=1500, n_freq_bins=None, use_mel_radar=False, n_mel_radar=80, mel_fmax=2500, mel_n_fft=1024, dual_mel_radar=False, use_spec_augment=True, normalize_radar_spec=False, teacher_model="large-v3", use_masked_distill=False, mask_ratio=0.5, distillation_mode="single", teacher_layer_indices=None, source_teacher_layer_indices=None, cache_subdir_mode=None, vad_sidecar_dir=None):
-        self.radar_paths = radar_paths
+    def __init__(self, laser_paths, audio_paths, texts, tokenizer, device="cpu", train=False, cache_dir=None, n_mels=128, lpf_cutoff_hz=1500, n_freq_bins=None, use_mel_radar=False, n_mel_radar=80, mel_fmax=2500, mel_n_fft=1024, dual_mel_radar=False, use_spec_augment=True, normalize_radar_spec=False, teacher_model="large-v3", use_masked_distill=False, mask_ratio=0.5, distillation_mode="single", teacher_layer_indices=None, source_teacher_layer_indices=None, cache_subdir_mode=None, vad_sidecar_dir=None):
+        self.laser_paths = laser_paths
         self.audio_paths = audio_paths
         self.texts = texts
         self.tokenizer = tokenizer  # Tokenizer passed from main process (avoid worker deadlock)
@@ -53,10 +53,10 @@ class RADARdatasetCached(Dataset):
         self.n_mels = n_mels
         self.lpf_cutoff_hz = lpf_cutoff_hz  # Low-pass filter cutoff (default: 1500 Hz to filter noise)
         self.n_freq_bins = n_freq_bins  # Direct bin count (overrides lpf_cutoff_hz if set)
-        self.use_mel_radar = use_mel_radar  # Use mel spectrogram for radar input
+        self.use_mel_radar = use_mel_radar  # Use mel spectrogram for laser input
         self.n_mel_radar = n_mel_radar      # Number of mel bins to USE at runtime
-        self.mel_fmax = mel_fmax            # Max frequency for radar mel filterbank
-        self.mel_n_fft = mel_n_fft          # FFT window size (1024 for better freq resolution on low-SNR radar)
+        self.mel_fmax = mel_fmax            # Max frequency for laser mel filterbank
+        self.mel_n_fft = mel_n_fft          # FFT window size (1024 for better freq resolution on low-SNR laser)
         self.dual_mel_radar = dual_mel_radar and use_mel_radar  # Cache both mel50 and mel80
         self.use_spec_augment = use_spec_augment
         self.normalize_radar_spec = normalize_radar_spec  # Per-sample normalization
@@ -145,7 +145,7 @@ class RADARdatasetCached(Dataset):
         # Check if cache exists (look for completion marker)
         self.completion_marker = self.cache_subdir / "_COMPLETE"
 
-        expected_samples = len(self.radar_paths)
+        expected_samples = len(self.laser_paths)
         cache_ready = False
 
         if self.completion_marker.exists():
@@ -182,7 +182,7 @@ class RADARdatasetCached(Dataset):
         print(f"Whisper encoder loaded on {preprocess_device}")
 
         with torch.no_grad():  # No gradients needed for preprocessing
-            for i in tqdm(range(len(self.radar_paths)), desc="Preprocessing"):
+            for i in tqdm(range(len(self.laser_paths)), desc="Preprocessing"):
                 cache_file = self.cache_subdir / f"sample_{i:06d}.pt"
 
                 # Skip if already cached
@@ -190,32 +190,32 @@ class RADARdatasetCached(Dataset):
                     continue
 
                 # Load audio
-                radar_wav, r_len = load_and_pad_audio(self.radar_paths[i])
+                laser_wav, r_len = load_and_pad_audio(self.laser_paths[i])
                 audio_wav, a_len = load_and_pad_audio(self.audio_paths[i])
 
-                # Compute radar spectrogram (always needed for student input)
+                # Compute laser spectrogram (always needed for student input)
                 if self.dual_mel_radar:
                     # Store both mel50 and mel80 in one file — shared cache for both students
-                    radar_spec_mel50 = get_radar_mel_spectrogram(
-                        radar_wav, n_mels=50, fmax=self.mel_fmax,
+                    laser_spec_mel50 = get_laser_mel_spectrogram(
+                        laser_wav, n_mels=50, fmax=self.mel_fmax,
                         n_fft=self.mel_n_fft, normalize=self.normalize_radar_spec
                     )
-                    radar_spec_mel80 = get_radar_mel_spectrogram(
-                        radar_wav, n_mels=80, fmax=self.mel_fmax,
+                    laser_spec_mel80 = get_laser_mel_spectrogram(
+                        laser_wav, n_mels=80, fmax=self.mel_fmax,
                         n_fft=self.mel_n_fft, normalize=self.normalize_radar_spec
                     )
-                    radar_spec = None  # not used in dual mode
+                    laser_spec = None  # not used in dual mode
                 elif self.use_mel_radar:
-                    radar_spec = get_radar_mel_spectrogram(
-                        radar_wav,
+                    laser_spec = get_laser_mel_spectrogram(
+                        laser_wav,
                         n_mels=self.n_mel_radar,
                         fmax=self.mel_fmax,
                         n_fft=self.mel_n_fft,
                         normalize=self.normalize_radar_spec
                     )
                 else:
-                    radar_spec = get_radar_linear_spectrogram(
-                        radar_wav,
+                    laser_spec = get_laser_linear_spectrogram(
+                        laser_wav,
                         lpf_cutoff_hz=self.lpf_cutoff_hz,
                         n_freq_bins=self.n_freq_bins,
                         normalize=self.normalize_radar_spec
@@ -256,14 +256,14 @@ class RADARdatasetCached(Dataset):
                 # Save this sample to disk immediately (no RAM buildup!)
                 if self.dual_mel_radar:
                     cache_data = {
-                        'radar_spec_mel50': radar_spec_mel50.cpu().half(),
-                        'radar_spec_mel80': radar_spec_mel80.cpu().half(),
+                        'laser_spec_mel50': laser_spec_mel50.cpu().half(),
+                        'laser_spec_mel80': laser_spec_mel80.cpu().half(),
                         'teacher_feats': teacher_feats.squeeze(0).cpu(),
                         'padding_mask': padding_mask.cpu().bool()
                     }
                 else:
                     cache_data = {
-                        'radar_spec': radar_spec.cpu().half(),
+                        'laser_spec': laser_spec.cpu().half(),
                         'teacher_feats': teacher_feats.squeeze(0).cpu(),
                         'padding_mask': padding_mask.cpu().bool()
                     }
@@ -399,7 +399,7 @@ class RADARdatasetCached(Dataset):
         return x, block_outputs, stem_output, attention_outputs
 
     def __len__(self):
-        return len(self.radar_paths)
+        return len(self.laser_paths)
 
     def __getitem__(self, idx):
         # Load precomputed data from disk (only this sample!)
@@ -408,28 +408,28 @@ class RADARdatasetCached(Dataset):
 
         # Extract tensors and convert to float32
         # Dual-mel cache: pick the spec matching this model's n_mel_radar
-        dual_key = f'radar_spec_mel{self.n_mel_radar}'
+        dual_key = f'laser_spec_mel{self.n_mel_radar}'
         if dual_key in cached_data:
-            radar_spec = cached_data[dual_key].clone().float()
+            laser_spec = cached_data[dual_key].clone().float()
         else:
-            radar_spec = cached_data['radar_spec'].clone().float()  # backward compat
+            laser_spec = cached_data['laser_spec'].clone().float()  # backward compat
         teacher_feats = cached_data['teacher_feats'].clone()  # Already float32 - no conversion
         padding_mask = cached_data['padding_mask'].clone().float()  # Convert bool -> float32
 
         # Sanitize NaN/Inf in cached data (can occur from corrupted cache entries)
-        radar_spec = torch.nan_to_num(radar_spec, nan=0.0, posinf=0.0, neginf=0.0)
+        laser_spec = torch.nan_to_num(laser_spec, nan=0.0, posinf=0.0, neginf=0.0)
         teacher_feats = torch.nan_to_num(teacher_feats, nan=0.0, posinf=0.0, neginf=0.0)
 
-        # The old cache stored radar_spec as [1, F, T] (3D). Some newer caches
+        # The old cache stored laser_spec as [1, F, T] (3D). Some newer caches
         # (e.g. recache_zeroed_vad.py before the fix) stored it as [F, T] (2D).
         # Student encoder expects [B, 1, F, T] after batching, so per-sample we
         # need [1, F, T]. Add the channel dim if it's missing.
-        if radar_spec.ndim == 2:
-            radar_spec = radar_spec.unsqueeze(0)
+        if laser_spec.ndim == 2:
+            laser_spec = laser_spec.unsqueeze(0)
 
         # Apply augmentation (only during training)
         if self.spec_augment is not None:
-            radar_spec = self.spec_augment(radar_spec)
+            laser_spec = self.spec_augment(laser_spec)
 
         # Tokenize text
         dec_input_ids, label_ids = tokenize_ground_truth(self.texts[idx], self.tokenizer)
@@ -447,7 +447,7 @@ class RADARdatasetCached(Dataset):
 
         # Build return dict
         result = {
-            "radar_spec": radar_spec,
+            "laser_spec": laser_spec,
             "decoder_input": torch.tensor(dec_input_ids, dtype=torch.long),
             "labels": torch.tensor(label_ids, dtype=torch.long),
             "padding_mask": padding_mask,

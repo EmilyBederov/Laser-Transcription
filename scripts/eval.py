@@ -35,10 +35,10 @@ def _patched_load(*args, **kwargs):
 torch.load = _patched_load
 
 import torchaudio
-from src.lightning.system import RadarLightningModule
+from src.lightning.system import LaserLightningModule
 from src.lightning.datamodule import (
-    load_and_pad_audio, get_radar_mel_spectrogram,
-    get_radar_linear_spectrogram, SAMPLE_RATE, N_SAMPLES,
+    load_and_pad_audio, get_laser_mel_spectrogram,
+    get_laser_linear_spectrogram, SAMPLE_RATE, N_SAMPLES,
 )
 
 _NORMALIZER = EnglishTextNormalizer()
@@ -214,9 +214,9 @@ def beam_decode(decoder, embeddings, tokenizer, beam_size=5, max_len=445,
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Evaluate radar-to-speech model')
+    parser = argparse.ArgumentParser(description='Evaluate laser-to-speech model')
     parser.add_argument('--checkpoint', required=True, help='Path to .ckpt file')
-    parser.add_argument('--test_csv', required=True, help='CSV with radar_path and text columns')
+    parser.add_argument('--test_csv', required=True, help='CSV with laser_path and text columns')
     parser.add_argument('--output', default='eval_results.csv', help='Output CSV path')
     parser.add_argument('--batch_size', type=int, default=8, help='Batch size for eval')
     parser.add_argument('--beam_size', type=int, default=1, help='Beam size (1=greedy, 5 recommended)')
@@ -240,7 +240,7 @@ def main():
 
     # Load full Lightning module
     print(f'Loading checkpoint: {args.checkpoint}')
-    module = RadarLightningModule.load_from_checkpoint(args.checkpoint, map_location=device)
+    module = LaserLightningModule.load_from_checkpoint(args.checkpoint, map_location=device)
     module.eval()
     module.to(device)
 
@@ -277,14 +277,14 @@ def main():
         for i, row in tqdm(df.iterrows(), total=len(df)):
             try:
                 if args.vad:
-                    wav = vad_crop_laser(row['radar_path'], silero[0], silero[1], device)
+                    wav = vad_crop_laser(row['laser_path'], silero[0], silero[1], device)
                 else:
-                    wav, _ = load_and_pad_audio(row['radar_path'])
+                    wav, _ = load_and_pad_audio(row['laser_path'])
                 if use_mel:
-                    spec = get_radar_mel_spectrogram(wav, n_mels=n_mel, fmax=mel_fmax,
+                    spec = get_laser_mel_spectrogram(wav, n_mels=n_mel, fmax=mel_fmax,
                                                       n_fft=mel_n_fft, normalize=normalize)
                 else:
-                    spec = get_radar_linear_spectrogram(wav, lpf_cutoff_hz=lpf_cutoff_hz,
+                    spec = get_laser_linear_spectrogram(wav, lpf_cutoff_hz=lpf_cutoff_hz,
                                                          normalize=normalize)
                 spec = spec.unsqueeze(0).to(device)  # [1, 1, freq, 3000]
 

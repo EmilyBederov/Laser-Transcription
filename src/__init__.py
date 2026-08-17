@@ -1,12 +1,12 @@
-from .lightning.datamodule import RADARdataset
-from .lightning.system import RadarLightningModule
-from .models import RadarWhisperStudent, RadarKDSystem
+from .lightning.datamodule import LASERdataset
+from .lightning.system import LaserLightningModule
+from .models import LaserWhisperStudent, LaserKDSystem
 
 __version__ = "0.1.0"
 
 __all__ = [
-    "RADARdataset",
-    "RadarLightningModule",
-    "RadarWhisperStudent",
-    "RadarKDSystem",
+    "LASERdataset",
+    "LaserLightningModule",
+    "LaserWhisperStudent",
+    "LaserKDSystem",
 ]

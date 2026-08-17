@@ -1,8 +1,8 @@
-from .datamodule import RADARdataset
-from .system import RadarLightningModule
+from .datamodule import LASERdataset
+from .system import LaserLightningModule
 
 try:
     from .callbacks import LogPredictionsCallback
-    __all__ = ["RADARdataset", "RadarLightningModule", "LogPredictionsCallback"]
+    __all__ = ["LASERdataset", "LaserLightningModule", "LogPredictionsCallback"]
 except ImportError:
-    __all__ = ["RADARdataset", "RadarLightningModule"]
+    __all__ = ["LASERdataset", "LaserLightningModule"]

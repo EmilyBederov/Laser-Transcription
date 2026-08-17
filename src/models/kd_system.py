@@ -2,12 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class RadarKDSystem(nn.Module):
+class LaserKDSystem(nn.Module):
     def __init__(self, student_model, teacher_model, teacher_type="whisper",
                  distillation_mode="single", skip_decoder=False):
         """
         Args:
-            student_model: the radar/LDV student encoder
+            student_model: the laser/LDV student encoder
             teacher_model: frozen Whisper model (can be None for pretrain)
             teacher_type: "whisper"
             distillation_mode: "single", "multi_layer", or "component_wise"
@@ -34,7 +34,7 @@ class RadarKDSystem(nn.Module):
             if skip_decoder:
                 print("✓ Decoder SKIPPED (encoder-only mode)")
             
-    def forward(self, radar_input, teacher_feats, decoder_input_ids, padding_mask, return_ctc=False):
+    def forward(self, laser_input, teacher_feats, decoder_input_ids, padding_mask, return_ctc=False):
         """
         Args:
             teacher_feats: Can be:
@@ -57,7 +57,7 @@ class RadarKDSystem(nn.Module):
         return_intermediate = (self.distillation_mode in ["multi_layer", "component_wise"])
 
         if return_ctc:
-            student_result = self.student(radar_input, padding_mask,
+            student_result = self.student(laser_input, padding_mask,
                                          return_ctc=True,
                                          return_intermediate=return_intermediate)
             if return_intermediate:
@@ -66,7 +66,7 @@ class RadarKDSystem(nn.Module):
                 student_feats_final, ctc_logits = student_result
                 student_feats_intermediate = None
         else:
-            student_result = self.student(radar_input, padding_mask,
+            student_result = self.student(laser_input, padding_mask,
                                          return_ctc=False,
                                          return_intermediate=return_intermediate)
             if return_intermediate:

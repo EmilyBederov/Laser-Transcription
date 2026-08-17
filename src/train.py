@@ -25,9 +25,9 @@ def _patched_torch_load(*args, **kwargs):
     return _original_torch_load(*args, **kwargs)
 torch.load = _patched_torch_load
 
-from src.lightning.datamodule import RADARdataset
-from src.lightning.data_cached import RADARdatasetCached
-from src.lightning.system import RadarLightningModule
+from src.lightning.datamodule import LASERdataset
+from src.lightning.data_cached import LASERdatasetCached
+from src.lightning.system import LaserLightningModule
 from src.lightning.callbacks import LogPredictionsCallback, LogAttnMapsCallback
 
 
@@ -74,8 +74,8 @@ def create_dataloaders(cfg):
         mel_n_fft = cfg.data.get('mel_n_fft', 1024)
         dual_mel_radar = cfg.data.get('dual_mel_radar', False)
 
-        train_dataset = RADARdatasetCached(
-            radar_paths=train_df['radar_path'].tolist(),
+        train_dataset = LASERdatasetCached(
+            laser_paths=train_df['laser_path'].tolist(),
             audio_paths=train_df['audio_path'].tolist(),
             texts=train_df['text'].tolist(),
             tokenizer=tokenizer,
@@ -102,8 +102,8 @@ def create_dataloaders(cfg):
             vad_sidecar_dir=cfg.data.get('vad_sidecar_dir_train', None),
         )
 
-        val_dataset = RADARdatasetCached(
-            radar_paths=val_df['radar_path'].tolist(),
+        val_dataset = LASERdatasetCached(
+            laser_paths=val_df['laser_path'].tolist(),
             audio_paths=val_df['audio_path'].tolist(),
             texts=val_df['text'].tolist(),
             tokenizer=tokenizer,
@@ -131,25 +131,25 @@ def create_dataloaders(cfg):
         )
     else:
         print(">> Using on-the-fly dataset (slower loading)")
-        train_dataset = RADARdataset(
-            radar_paths=train_df['radar_path'].tolist(),
+        train_dataset = LASERdataset(
+            laser_paths=train_df['laser_path'].tolist(),
             audio_paths=train_df['audio_path'].tolist(),
             texts=train_df['text'].tolist(),
             device='cpu',
             train=True,
             n_mels=n_mels,
-            lpf_cutoff_hz=cfg.data.get('lpf_cutoff_hz', 1500),  # Low-pass filter for radar signal
+            lpf_cutoff_hz=cfg.data.get('lpf_cutoff_hz', 1500),  # Low-pass filter for laser signal
             use_spec_augment=cfg.data.get('spec_augment', True)  # Enable/disable spec augment
         )
 
-        val_dataset = RADARdataset(
-            radar_paths=val_df['radar_path'].tolist(),
+        val_dataset = LASERdataset(
+            laser_paths=val_df['laser_path'].tolist(),
             audio_paths=val_df['audio_path'].tolist(),
             texts=val_df['text'].tolist(),
             device='cpu',
             train=False,
             n_mels=n_mels,
-            lpf_cutoff_hz=cfg.data.get('lpf_cutoff_hz', 1500),  # Low-pass filter for radar signal
+            lpf_cutoff_hz=cfg.data.get('lpf_cutoff_hz', 1500),  # Low-pass filter for laser signal
             use_spec_augment=False  # Never augment validation
         )
     
@@ -220,7 +220,7 @@ def main(cfg: DictConfig):
 
     if use_mel_radar:
         cfg.model.input_freq = n_mel_radar
-        print(f"Using mel radar spectrogram: input_freq={n_mel_radar} mel bins (fmax={cfg.data.get('mel_fmax', 2500)} Hz)")
+        print(f"Using mel laser spectrogram: input_freq={n_mel_radar} mel bins (fmax={cfg.data.get('mel_fmax', 2500)} Hz)")
     elif n_freq_bins is not None:
         cfg.model.input_freq = n_freq_bins
         print(f"Using n_freq_bins={n_freq_bins} (direct bin count)")
@@ -232,7 +232,7 @@ def main(cfg: DictConfig):
             print(f"Using full spectrum: input_freq={cfg.model.input_freq} (no frequency cropping)")
 
     # Initialize model
-    model = RadarLightningModule(cfg)
+    model = LaserLightningModule(cfg)
     
     # Setup WandB Logger
     wandb_logger = WandbLogger(
