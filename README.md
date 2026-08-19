@@ -149,36 +149,4 @@ The script prints WER/CER and writes per-utterance predictions to `--output`.
 | `--vad` | Silero-VAD crop the laser signal (recommended for real LDV). |
 | `--beam_size 5` | Beam search (1 = greedy). |
 | `--no_repeat_ngram_size 3` | Block repeated n-grams (suppresses decoder loops). |
-| `--legacy_sot` | Use for checkpoints trained **before the SOT fix** — see below. |
 
-## Pretrained checkpoints
-
-Pretrained Stage-1 and Stage-2 checkpoints are released on Zenodo:
-`<ZENODO-DOI>`. Download one and point `--checkpoint` at it to skip training.
-
-> **Note:** the released checkpoints were trained with the earlier 3-token
-> start-of-transcript prefix. **Evaluate them with `--legacy_sot`.** Checkpoints
-> you train yourself with this code use the corrected 2-token prefix and do
-> **not** need the flag.
-
-## Configuration reference
-
-| file | what it controls |
-|---|---|
-| `configs/data/default.yaml` | CSV paths, batch size, `cache_dir`, mel settings (`n_mel_radar`, `mel_fmax`, `mel_n_fft`), `lowercase_labels`. |
-| `configs/model/whisper_small_student.yaml` | student = Whisper small.en encoder (768d, 12L), which layers are distilled. |
-| `configs/trainer/decoder_guided_encoder_only.yaml` | Stage 1: loss weights, RKD, warmup, epochs, LR, `devices`. |
-| `configs/trainer/stage2_xattn.yaml` | Stage 2: LoRA rank/targets, encoder LLRD, `decoder_lr`, xattn-KL weight. |
-
-Any field can be overridden on the command line, e.g.
-`trainer.max_epochs=30 data.batch_size=8 trainer.devices=1`.
-
-## Citation
-
-```bibtex
-@article{bederov_ldv_transcription,
-  title  = {Direct Speech Transcription from Laser Doppler Vibrometry},
-  author = {Bederov, Emily and Berdugo, Baruch and Cohen, Israel},
-  year   = {2026}
-}
-```
