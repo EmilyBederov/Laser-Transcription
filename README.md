@@ -150,3 +150,25 @@ The script prints WER/CER and writes per-utterance predictions to `--output`.
 | `--beam_size 5` | Beam search (1 = greedy). |
 | `--no_repeat_ngram_size 3` | Block repeated n-grams (suppresses decoder loops). |
 
+## Pretrained checkpoints
+
+Pre-trained checkpoints are on the Hugging Face Hub:
+**<https://huggingface.co/Emilyb5/laser-speech-checkpoints>**
+
+| file | what it is |
+|---|---|
+| `transcription/s2_laser.ckpt` | Stage 2, adapted to real LDV — the main model; evaluate this. |
+| `transcription/s1_laser.ckpt` | Stage 1 laser encoder; pass as `trainer.encoder_ckpt_path` to train your own Stage 2. |
+| `transcription/s2_synth_r64.ckpt` | Stage 2 on the synthetic corpus. |
+| `transcription/s1_synth_channorm.ckpt` | Stage 1 on the synthetic corpus (channel-norm feature distillation). |
+
+Download one and pass it to `--checkpoint`. These use the corrected start-of-transcript
+prefix, so **no `--legacy_sot` is needed**. Runs out-of-the-box on the bundled `examples/`:
+
+```bash
+hf download Emilyb5/laser-speech-checkpoints transcription/s2_laser.ckpt --local-dir ckpts
+python scripts/eval.py --checkpoint ckpts/transcription/s2_laser.ckpt \
+    --test_csv examples/example.csv --beam_size 5 --no_repeat_ngram_size 3 --vad \
+    --output results/eval.csv
+```
+
